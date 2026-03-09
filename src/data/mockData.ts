@@ -12,7 +12,7 @@ const isoOffset = (days: number, hours = 10) => {
 export const users: User[] = [
   {
     id: 'u1',
-    name: 'Amine',
+    name: 'Thymon',
     role: 'admin',
     avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=120&h=120&fit=crop',
   },
@@ -231,6 +231,26 @@ export const calls: CallRecord[] = [
     transcript: 'Numéro obtenu, appel de qualification OK.',
     createdAt: isoOffset(0, 11),
   },
+  {
+    id: 'c6',
+    prospectId: 'p5',
+    userId: 'u1',
+    duration: 362,
+    recordingUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-6.mp3',
+    transcript: 'Excellent traitement objection prix, closing propre.',
+    createdAt: isoOffset(-2, 16),
+    isTraining: true,
+  },
+  {
+    id: 'c7',
+    prospectId: 'p2',
+    userId: 'u2',
+    duration: 290,
+    recordingUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-7.mp3',
+    transcript: 'Bonne découverte besoin client, passage en rappel.',
+    createdAt: isoOffset(-1, 17),
+    isTraining: true,
+  },
 ]
 
 export const appointments: Appointment[] = [
@@ -241,6 +261,7 @@ export const appointments: Appointment[] = [
     datetime: isoOffset(1, 14),
     googleEventId: 'gcal_evt_1',
     smsSent: false,
+    outcome: 'confirmed',
   },
   {
     id: 'a2',
@@ -249,6 +270,16 @@ export const appointments: Appointment[] = [
     datetime: isoOffset(2, 11),
     googleEventId: 'gcal_evt_2',
     smsSent: false,
+    outcome: 'bad_condition',
+  },
+  {
+    id: 'a3',
+    prospectId: 'p9',
+    userId: 'u3',
+    datetime: isoOffset(0, 15),
+    googleEventId: 'gcal_evt_3',
+    smsSent: true,
+    outcome: 'no_show',
   },
 ]
 

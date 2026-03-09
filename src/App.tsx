@@ -3,10 +3,12 @@ import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { AppShell } from './components/layout/AppShell'
 import { useApp } from './context/AppContext'
 import { CallsPage } from './pages/CallsPage'
+import { ContactGaragesPage } from './pages/ContactGaragesPage'
 import { DashboardPage } from './pages/DashboardPage'
+import { FacturesPage } from './pages/FacturesPage'
 import { LoginPage } from './pages/LoginPage'
-import { PerformancesPage } from './pages/PerformancesPage'
 import { PlanningPage } from './pages/PlanningPage'
+import { ProgresserPage } from './pages/ProgresserPage'
 import { ProspectionPage } from './pages/ProspectionPage'
 import { SettingsPage } from './pages/SettingsPage'
 import { TeamPage } from './pages/TeamPage'
@@ -30,11 +32,15 @@ const App = () => {
           transition={{ duration: 0.2 }}
         >
           <Routes location={location}>
-            <Route path="/" element={<DashboardPage />} />
-            <Route path="/prospection" element={<ProspectionPage />} />
+            <Route path="/" element={<ProspectionPage />} />
+            <Route path="/prospection" element={<Navigate to="/" replace />} />
             <Route path="/appels" element={<CallsPage />} />
+            <Route path="/vue-ensemble" element={<DashboardPage />} />
             <Route path="/planning" element={<PlanningPage />} />
-            <Route path="/performances" element={<PerformancesPage />} />
+            <Route path="/progresser" element={<ProgresserPage />} />
+            <Route path="/performances" element={<Navigate to="/progresser" replace />} />
+            <Route path="/factures" element={<FacturesPage />} />
+            <Route path="/contact-garages" element={<ContactGaragesPage />} />
             <Route path="/equipe" element={<TeamPage />} />
             <Route path="/parametres" element={<SettingsPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />

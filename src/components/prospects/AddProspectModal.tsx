@@ -21,12 +21,14 @@ const emptyForm: ProspectExtraction = {
 export const AddProspectModal = ({ open, onClose }: AddProspectModalProps) => {
   const [mode, setMode] = useState<'menu' | 'screenshot' | 'manual'>('menu')
   const [loading, setLoading] = useState(false)
+  const [processedCount, setProcessedCount] = useState(0)
   const [form, setForm] = useState<ProspectExtraction>(emptyForm)
-  const { addProspect } = useApp()
+  const { addProspect, addOrUpdateProspect } = useApp()
 
   const resetAndClose = () => {
     setMode('menu')
     setForm(emptyForm)
+    setProcessedCount(0)
     onClose()
   }
 
@@ -38,15 +40,17 @@ export const AddProspectModal = ({ open, onClose }: AddProspectModalProps) => {
     resetAndClose()
   }
 
-  const onFileSelect = async (file: File | null) => {
-    if (!file) {
+  const onFileSelect = async (files: FileList | null) => {
+    if (!files || files.length === 0) {
       return
     }
     setLoading(true)
     try {
-      const extracted = await analyzeScreenshotWithClaude(file)
-      setForm(extracted)
-      setMode('manual')
+      const extractedItems = await Promise.all(
+        Array.from(files).map((file) => analyzeScreenshotWithClaude(file)),
+      )
+      extractedItems.forEach((extracted) => addOrUpdateProspect(extracted))
+      setProcessedCount(extractedItems.length)
     } finally {
       setLoading(false)
     }
@@ -103,11 +107,17 @@ export const AddProspectModal = ({ open, onClose }: AddProspectModalProps) => {
                   <input
                     type="file"
                     accept="image/*"
+                    multiple
                     className="hidden"
-                    onChange={(event) => onFileSelect(event.target.files?.[0] ?? null)}
+                    onChange={(event) => onFileSelect(event.target.files)}
                   />
-                  <span>{loading ? 'Analyse en cours...' : 'Choisir une capture d’écran'}</span>
+                  <span>{loading ? 'Analyse en cours...' : 'Choisir une ou plusieurs captures d’écran'}</span>
                 </label>
+                {processedCount > 0 ? (
+                  <p className="rounded-xl bg-[#0F0F0F] p-2 text-xs text-zinc-300">
+                    {processedCount} screenshot(s) analysé(s) et prospects créés/mis à jour.
+                  </p>
+                ) : null}
                 <button
                   type="button"
                   onClick={() => setMode('menu')}
@@ -137,7 +147,7 @@ export const AddProspectModal = ({ open, onClose }: AddProspectModalProps) => {
                 />
                 <FormInput
                   label="Ville"
-                  value={form.city}
+                  value={form.city ?? ''}
                   onChange={(value) => setForm((prev) => ({ ...prev, city: value }))}
                 />
                 <FormInput

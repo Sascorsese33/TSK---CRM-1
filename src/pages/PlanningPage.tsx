@@ -1,14 +1,17 @@
 import { useMemo, useState } from 'react'
 import { useApp } from '../context/AppContext'
+import type { AppointmentOutcome } from '../types'
 
 type ViewMode = 'week' | 'day'
 
 const toDayKey = (date: Date) => date.toISOString().slice(0, 10)
 
 export const PlanningPage = () => {
-  const { appointments, prospects } = useApp()
+  const { appointments, prospects, updateAppointmentOutcome, scheduleNoShowCallback } = useApp()
   const [view, setView] = useState<ViewMode>('week')
   const [selected, setSelected] = useState(toDayKey(new Date()))
+  const [openedCallbackPicker, setOpenedCallbackPicker] = useState<string | null>(null)
+  const [callbackDate, setCallbackDate] = useState('')
 
   const weekDays = useMemo(() => {
     const start = new Date(selected)
@@ -35,6 +38,27 @@ export const PlanningPage = () => {
     view === 'day'
       ? events.filter((item) => item.appointment.datetime.slice(0, 10) === selected)
       : events.filter((item) => weekDays.some((day) => item.appointment.datetime.slice(0, 10) === toDayKey(day)))
+
+  const outcomeColor: Record<AppointmentOutcome, string> = {
+    confirmed: 'bg-violet-500',
+    bad_condition: 'bg-yellow-400',
+    no_show: 'bg-red-500',
+  }
+
+  const outcomeLabel: Record<AppointmentOutcome, string> = {
+    confirmed: '🟣 RDV validé',
+    bad_condition: '🟡 Véhicule en mauvais état',
+    no_show: '🔴 Client pas venu',
+  }
+
+  const onScheduleNoShowCallback = (appointmentId: string) => {
+    if (!callbackDate) {
+      return
+    }
+    scheduleNoShowCallback(appointmentId, new Date(callbackDate).toISOString())
+    setOpenedCallbackPicker(null)
+    setCallbackDate('')
+  }
 
   return (
     <div className="space-y-4">
@@ -76,9 +100,7 @@ export const PlanningPage = () => {
                   {dayEvents.map((item) => (
                     <span
                       key={item.appointment.id}
-                      className={`h-2 w-2 rounded-full ${
-                        item.prospect?.status === 'rdv' ? 'bg-[#22C55E]' : 'bg-[#F97316]'
-                      }`}
+                      className={`h-2.5 w-2.5 rounded-full ${outcomeColor[item.appointment.outcome]}`}
                     />
                   ))}
                 </div>
@@ -97,7 +119,50 @@ export const PlanningPage = () => {
             <p className="text-sm text-zinc-400">
               {new Date(item.appointment.datetime).toLocaleString('fr-FR')}
             </p>
+            <p className="mt-1 text-xs text-zinc-300">{outcomeLabel[item.appointment.outcome]}</p>
             <p className="text-xs text-zinc-500">Google event: {item.appointment.googleEventId ?? 'en cours'}</p>
+            <select
+              value={item.appointment.outcome}
+              onChange={(event) =>
+                updateAppointmentOutcome(item.appointment.id, event.target.value as AppointmentOutcome)
+              }
+              className="mt-2 min-h-11 w-full rounded-xl border border-zinc-700 bg-[#0F0F0F] px-3 text-sm"
+            >
+              <option value="confirmed">🟣 RDV validé</option>
+              <option value="bad_condition">🟡 Véhicule en mauvais état</option>
+              <option value="no_show">🔴 Client pas venu</option>
+            </select>
+
+            {item.appointment.outcome === 'no_show' ? (
+              <div className="mt-2 space-y-2">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setOpenedCallbackPicker((prev) => (prev === item.appointment.id ? null : item.appointment.id))
+                  }
+                  className="min-h-11 w-full rounded-xl border border-red-500/50 text-sm text-red-300"
+                >
+                  Programmer un rappel
+                </button>
+                {openedCallbackPicker === item.appointment.id ? (
+                  <div className="rounded-xl bg-[#0F0F0F] p-2">
+                    <input
+                      type="datetime-local"
+                      value={callbackDate}
+                      onChange={(event) => setCallbackDate(event.target.value)}
+                      className="min-h-11 w-full rounded-xl border border-zinc-700 bg-transparent px-3 text-sm"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => onScheduleNoShowCallback(item.appointment.id)}
+                      className="mt-2 min-h-11 w-full rounded-xl bg-[#FF6B35] text-sm font-medium"
+                    >
+                      Ajouter en prospection
+                    </button>
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
           </article>
         ))}
       </section>

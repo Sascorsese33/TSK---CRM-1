@@ -9,6 +9,7 @@ interface ProspectDetailModalProps {
   prospect: Prospect | null
   open: boolean
   onClose: () => void
+  onStatusChange: (prospect: Prospect, status: ProspectStatus, callbackAt?: string) => void
 }
 
 const statusChoices: { value: ProspectStatus; label: string; color: string }[] = [
@@ -19,8 +20,13 @@ const statusChoices: { value: ProspectStatus; label: string; color: string }[] =
   { value: 'waiting', label: 'En attente', color: 'bg-zinc-600' },
 ]
 
-export const ProspectDetailModal = ({ prospect, open, onClose }: ProspectDetailModalProps) => {
-  const { calls, updateProspectStatus, updateProspectNotes, scheduleAppointment } = useApp()
+export const ProspectDetailModal = ({
+  prospect,
+  open,
+  onClose,
+  onStatusChange,
+}: ProspectDetailModalProps) => {
+  const { calls, updateProspectNotes, scheduleAppointment } = useApp()
   const [callbackAt, setCallbackAt] = useState('')
   const [rdvAt, setRdvAt] = useState('')
   const [smsEnabled, setSmsEnabled] = useState(true)
@@ -39,10 +45,14 @@ export const ProspectDetailModal = ({ prospect, open, onClose }: ProspectDetailM
 
   const handleStatusChange = (status: ProspectStatus) => {
     if (status === 'callback') {
-      updateProspectStatus(prospect.id, status, callbackAt || new Date().toISOString())
+      onStatusChange(
+        prospect,
+        status,
+        callbackAt ? new Date(callbackAt).toISOString() : new Date().toISOString(),
+      )
       return
     }
-    updateProspectStatus(prospect.id, status)
+    onStatusChange(prospect, status)
   }
 
   const saveRdv = async () => {

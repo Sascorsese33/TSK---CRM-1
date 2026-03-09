@@ -1,11 +1,15 @@
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useState } from 'react'
 import { appointments as seedAppointments, calls as seedCalls, prospects as seedProspects, stats as seedStats, tips as seedTips, users as seedUsers } from '../data/mockData'
+import { defaultDeballeContent, defaultGarages } from '../data/staticContent'
 import { createGoogleCalendarAppointment, sendAppointmentReminderSms } from '../lib/integrations'
 import type {
   Appointment,
+  AppointmentOutcome,
   CallRecord,
+  DeballeContent,
   DailyStat,
+  Garage,
   Prospect,
   ProspectExtraction,
   ProspectStatus,
@@ -21,12 +25,30 @@ interface AppContextValue {
   appointments: Appointment[]
   tips: Tip[]
   stats: DailyStat[]
+  garages: Garage[]
+  deballeContent: DeballeContent
   login: (email: string, password: string) => Promise<boolean>
   logout: () => void
   addProspect: (input: ProspectExtraction) => void
-  updateProspectStatus: (prospectId: string, status: ProspectStatus, callbackAt?: string) => void
+  addOrUpdateProspect: (input: ProspectExtraction) => void
+  updateProspectStatus: (
+    prospectId: string,
+    status: ProspectStatus,
+    callbackAt?: string,
+    specialTag?: string,
+  ) => void
   updateProspectNotes: (prospectId: string, notes: string) => void
-  scheduleAppointment: (prospectId: string, datetime: string, withSms: boolean) => Promise<void>
+  scheduleAppointment: (
+    prospectId: string,
+    datetime: string,
+    withSms: boolean,
+    location?: string,
+  ) => Promise<void>
+  updateAppointmentOutcome: (appointmentId: string, outcome: AppointmentOutcome) => void
+  scheduleNoShowCallback: (appointmentId: string, callbackAt: string) => void
+  toggleTrainingCall: (callId: string) => void
+  updateGarage: (garageId: string, input: Pick<Garage, 'name' | 'address' | 'phone'>) => void
+  updateDeballeContent: (input: DeballeContent) => void
   updateTip: (tipId: string, content: Tip['content']) => void
 }
 
@@ -36,10 +58,12 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
   const [users] = useState(seedUsers)
   const [currentUser, setCurrentUser] = useState<User | null>(seedUsers[0])
   const [prospects, setProspects] = useState(seedProspects)
-  const [calls] = useState(seedCalls)
+  const [calls, setCalls] = useState(seedCalls)
   const [appointments, setAppointments] = useState(seedAppointments)
   const [tips, setTips] = useState(seedTips)
   const [stats] = useState(seedStats)
+  const [garages, setGarages] = useState(defaultGarages)
+  const [deballeContent, setDeballeContent] = useState(defaultDeballeContent)
 
   const login = async (email: string, password: string) => {
     if (!password) {
@@ -54,26 +78,62 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
   const logout = () => setCurrentUser(null)
 
   const addProspect = (input: ProspectExtraction) => {
+    addOrUpdateProspect(input)
+  }
+
+  const addOrUpdateProspect = (input: ProspectExtraction) => {
     if (!currentUser) {
       return
     }
 
-    const next: Prospect = {
-      id: crypto.randomUUID(),
-      ...input,
-      photoUrl:
-        'https://images.unsplash.com/photo-1552519507-da3b142c6e3d?w=1200&h=700&fit=crop',
-      lbcUrl: 'https://www.leboncoin.fr',
-      status: 'ready',
-      assignedTo: currentUser.id,
-      createdAt: new Date().toISOString(),
-      notes: 'Nouveau prospect ajouté manuellement.',
-    }
+    const city = input.city || 'Non renseignée'
+    setProspects((prev) => {
+      const existingByPhone = prev.find((prospect) => prospect.phone === input.phone)
+      const existingByIdentity = prev.find(
+        (prospect) =>
+          prospect.name.toLowerCase() === input.name.toLowerCase() &&
+          prospect.vehicle.toLowerCase() === input.vehicle.toLowerCase(),
+      )
+      const existing = existingByPhone ?? existingByIdentity
 
-    setProspects((prev) => [next, ...prev])
+      if (existing) {
+        return prev.map((prospect) =>
+          prospect.id === existing.id
+            ? {
+                ...prospect,
+                name: input.name || prospect.name,
+                vehicle: input.vehicle || prospect.vehicle,
+                price: input.price || prospect.price,
+                phone: input.phone || prospect.phone,
+                city,
+              }
+            : prospect,
+        )
+      }
+
+      const next: Prospect = {
+        id: crypto.randomUUID(),
+        ...input,
+        city,
+        photoUrl:
+          'https://images.unsplash.com/photo-1552519507-da3b142c6e3d?w=1200&h=700&fit=crop',
+        lbcUrl: 'https://www.leboncoin.fr',
+        status: 'ready',
+        assignedTo: currentUser.id,
+        createdAt: new Date().toISOString(),
+        notes: 'Nouveau prospect ajouté manuellement.',
+      }
+
+      return [next, ...prev]
+    })
   }
 
-  const updateProspectStatus = (prospectId: string, status: ProspectStatus, callbackAt?: string) => {
+  const updateProspectStatus = (
+    prospectId: string,
+    status: ProspectStatus,
+    callbackAt?: string,
+    specialTag?: string,
+  ) => {
     setProspects((prev) =>
       prev.map((prospect) =>
         prospect.id === prospectId
@@ -81,6 +141,7 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
               ...prospect,
               status,
               callbackAt: status === 'callback' ? callbackAt : undefined,
+              specialTag,
             }
           : prospect,
       ),
@@ -93,7 +154,12 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
     )
   }
 
-  const scheduleAppointment = async (prospectId: string, datetime: string, withSms: boolean) => {
+  const scheduleAppointment = async (
+    prospectId: string,
+    datetime: string,
+    withSms: boolean,
+    location?: string,
+  ) => {
     if (!currentUser) {
       return
     }
@@ -108,6 +174,7 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
       vehicle: prospect.vehicle,
       price: prospect.price,
       datetime,
+      location,
     })
 
     const createdAppointment: Appointment = {
@@ -117,6 +184,7 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
       datetime,
       googleEventId: String(calendar.eventId),
       smsSent: false,
+      outcome: 'confirmed',
     }
 
     setAppointments((prev) => [createdAppointment, ...prev])
@@ -143,6 +211,40 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
     setTips((prev) => prev.map((tip) => (tip.id === tipId ? { ...tip, content } : tip)))
   }
 
+  const updateAppointmentOutcome = (appointmentId: string, outcome: AppointmentOutcome) => {
+    setAppointments((prev) =>
+      prev.map((appointment) =>
+        appointment.id === appointmentId ? { ...appointment, outcome } : appointment,
+      ),
+    )
+  }
+
+  const scheduleNoShowCallback = (appointmentId: string, callbackAt: string) => {
+    const appointment = appointments.find((item) => item.id === appointmentId)
+    if (!appointment) {
+      return
+    }
+
+    updateProspectStatus(appointment.prospectId, 'callback', callbackAt, 'Pas venu — à rappeler')
+    updateAppointmentOutcome(appointmentId, 'no_show')
+  }
+
+  const toggleTrainingCall = (callId: string) => {
+    setCalls((prev) =>
+      prev.map((call) => (call.id === callId ? { ...call, isTraining: !call.isTraining } : call)),
+    )
+  }
+
+  const updateGarage = (garageId: string, input: Pick<Garage, 'name' | 'address' | 'phone'>) => {
+    setGarages((prev) =>
+      prev.map((garage) => (garage.id === garageId ? { ...garage, ...input } : garage)),
+    )
+  }
+
+  const updateDeballeContent = (input: DeballeContent) => {
+    setDeballeContent(input)
+  }
+
   const value: AppContextValue = {
     users,
     currentUser,
@@ -151,12 +253,20 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
     appointments,
     tips,
     stats,
+    garages,
+    deballeContent,
     login,
     logout,
     addProspect,
+    addOrUpdateProspect,
     updateProspectStatus,
     updateProspectNotes,
     scheduleAppointment,
+    updateAppointmentOutcome,
+    scheduleNoShowCallback,
+    toggleTrainingCall,
+    updateGarage,
+    updateDeballeContent,
     updateTip,
   }
 
