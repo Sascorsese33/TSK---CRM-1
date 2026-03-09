@@ -1,12 +1,14 @@
 import { AnimatePresence, motion } from 'framer-motion'
 import {
-  BarChart3,
+  BriefcaseBusiness,
+  Building2,
   CalendarDays,
+  FileText,
+  GraduationCap,
   LayoutDashboard,
   Menu,
   PhoneCall,
   Settings,
-  Trophy,
   Users,
   X,
 } from 'lucide-react'
@@ -19,16 +21,18 @@ interface AppShellProps {
 }
 
 const navItems = [
-  { to: '/', label: "Vue d'ensemble", icon: LayoutDashboard },
-  { to: '/prospection', label: 'Prospection', icon: BarChart3 },
+  { to: '/', label: 'Prospection', icon: BriefcaseBusiness },
   { to: '/appels', label: 'Appels', icon: PhoneCall },
+  { to: '/vue-ensemble', label: "Vue d'ensemble", icon: LayoutDashboard },
   { to: '/planning', label: 'Planning', icon: CalendarDays },
-  { to: '/performances', label: 'Performances', icon: Trophy },
+  { to: '/progresser', label: 'Progresser', icon: GraduationCap },
+  { to: '/factures', label: 'Factures', icon: FileText },
+  { to: '/contact-garages', label: 'Contact Garages', icon: Building2 },
   { to: '/equipe', label: 'Équipe', icon: Users, adminOnly: true },
   { to: '/parametres', label: 'Paramètres', icon: Settings },
 ]
 
-const mobileTabs = ['/', '/prospection', '/appels', '/planning', '/performances']
+const mobileTabs = ['/', '/appels', '/vue-ensemble', '/planning', '/progresser']
 
 export const AppShell = ({ children }: AppShellProps) => {
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -80,7 +84,7 @@ export const AppShell = ({ children }: AppShellProps) => {
               >
                 {mobileOpen ? <X size={18} /> : <Menu size={18} />}
               </button>
-              <div>
+              <div className="hidden sm:block">
                 <p className="text-xs text-zinc-400">TransakPro CRM</p>
                 <h1 className="text-lg font-semibold">{currentTitle}</h1>
               </div>
@@ -122,7 +126,7 @@ export const AppShell = ({ children }: AppShellProps) => {
                   }
                 >
                   <Icon size={16} />
-                  <span className="mt-1">{item.label.split(' ')[0]}</span>
+                  <span className="mt-1">{item.label === "Vue d'ensemble" ? 'Vue' : item.label.split(' ')[0]}</span>
                 </NavLink>
               )
             })}

@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react'
 import { AddProspectModal } from '../components/prospects/AddProspectModal'
 import { ProspectCard } from '../components/prospects/ProspectCard'
 import { ProspectDetailModal } from '../components/prospects/ProspectDetailModal'
+import { RdvConfirmationModal } from '../components/prospects/RdvConfirmationModal'
 import { TipsSheet } from '../components/prospects/TipsSheet'
 import { useApp } from '../context/AppContext'
 import { callProspectWithTwilio } from '../lib/integrations'
@@ -20,6 +21,7 @@ export const ProspectionPage = () => {
   const [refreshKey, setRefreshKey] = useState(0)
   const [pulling, setPulling] = useState(false)
   const [callingProspectId, setCallingProspectId] = useState<string | null>(null)
+  const [rdvProspect, setRdvProspect] = useState<Prospect | null>(null)
 
   const dayProspects = useMemo(
     () =>
@@ -50,6 +52,13 @@ export const ProspectionPage = () => {
       setPulling(false)
       setRefreshKey((prev) => prev + 1)
     }, 600)
+  }
+
+  const handleStatusChange = (prospect: Prospect, status: Prospect['status'], callbackAt?: string) => {
+    updateProspectStatus(prospect.id, status, callbackAt)
+    if (status === 'rdv') {
+      setRdvProspect(prospect)
+    }
   }
 
   return (
@@ -96,7 +105,13 @@ export const ProspectionPage = () => {
             onCall={handleCall}
             onOpenDetails={setDetailProspect}
             onOpenTips={setTipProspect}
-            onStatusSwipe={(prospectId, status) => updateProspectStatus(prospectId, status)}
+            onStatusSwipe={(prospectId, status) => {
+              const target = prospects.find((item) => item.id === prospectId)
+              if (!target) {
+                return
+              }
+              handleStatusChange(target, status)
+            }}
           />
         ))}
       </AnimatePresence>
@@ -121,9 +136,15 @@ export const ProspectionPage = () => {
         open={Boolean(detailProspect)}
         prospect={detailProspect}
         onClose={() => setDetailProspect(null)}
+        onStatusChange={handleStatusChange}
       />
       <TipsSheet open={Boolean(tipProspect)} prospect={tipProspect} onClose={() => setTipProspect(null)} />
       <AddProspectModal open={showAdd} onClose={() => setShowAdd(false)} />
+      <RdvConfirmationModal
+        open={Boolean(rdvProspect)}
+        prospect={rdvProspect}
+        onClose={() => setRdvProspect(null)}
+      />
     </div>
   )
 }

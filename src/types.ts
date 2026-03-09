@@ -1,6 +1,7 @@
 export type UserRole = 'admin' | 'prospector'
 
 export type ProspectStatus = 'rdv' | 'refus' | 'callback' | 'ready' | 'waiting'
+export type AppointmentOutcome = 'confirmed' | 'bad_condition' | 'no_show'
 
 export interface User {
   id: string
@@ -20,6 +21,7 @@ export interface Prospect {
   lbcUrl: string
   status: ProspectStatus
   callbackAt?: string
+  specialTag?: string
   assignedTo: string
   createdAt: string
   notes: string
@@ -33,6 +35,7 @@ export interface CallRecord {
   recordingUrl: string
   transcript: string
   createdAt: string
+  isTraining?: boolean
 }
 
 export interface Appointment {
@@ -42,6 +45,7 @@ export interface Appointment {
   datetime: string
   googleEventId?: string
   smsSent: boolean
+  outcome: AppointmentOutcome
 }
 
 export interface Tip {
@@ -67,6 +71,20 @@ export interface ProspectExtraction {
   name: string
   vehicle: string
   price: number
-  city: string
+  city?: string
   phone: string
+}
+
+export interface Garage {
+  id: string
+  name: string
+  address: string
+  phone: string
+}
+
+export interface DeballeContent {
+  pointsVerifier: string[]
+  deballeSouple: string
+  deballeAgressive: string
+  conseilsProspection: string[]
 }

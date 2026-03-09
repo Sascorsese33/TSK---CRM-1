@@ -25,3 +25,13 @@ export const statusColor: Record<ProspectStatus, string> = {
 }
 
 export const statusOrder: ProspectStatus[] = ['rdv', 'callback', 'ready', 'waiting', 'refus']
+
+const statusRank: Record<ProspectStatus, number> = {
+  waiting: 0,
+  ready: 1,
+  callback: 2,
+  rdv: 3,
+  refus: 3,
+}
+
+export const hasCallablePhoneStatus = (status: ProspectStatus) => statusRank[status] >= statusRank.ready

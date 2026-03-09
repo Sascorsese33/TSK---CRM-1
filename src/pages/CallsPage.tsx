@@ -1,78 +1,95 @@
+import { motion } from 'framer-motion'
 import { useMemo, useState } from 'react'
 import { useApp } from '../context/AppContext'
-import { prettyDuration, since } from '../lib/format'
+import { callProspectWithTwilio } from '../lib/integrations'
+import { hasCallablePhoneStatus } from '../lib/status'
 
-type FilterRange = 'today' | 'week' | 'month'
+type SortMode = 'recent' | 'city'
 
 export const CallsPage = () => {
-  const { calls, prospects, users } = useApp()
-  const [range, setRange] = useState<FilterRange>('today')
-  const [userFilter, setUserFilter] = useState('all')
+  const { prospects } = useApp()
+  const [sortMode, setSortMode] = useState<SortMode>('recent')
+  const [callingId, setCallingId] = useState<string | null>(null)
 
-  const filteredCalls = useMemo(() => {
-    const now = new Date()
-    const day = 24 * 60 * 60 * 1000
-    const maxAge = range === 'today' ? day : range === 'week' ? day * 7 : day * 31
+  const callableProspects = useMemo(() => {
+    const base = prospects.filter(
+      (prospect) => Boolean(prospect.phone) && hasCallablePhoneStatus(prospect.status),
+    )
+    if (sortMode === 'city') {
+      return [...base].sort((left, right) => left.city.localeCompare(right.city))
+    }
+    return [...base].sort(
+      (left, right) => new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime(),
+    )
+  }, [prospects, sortMode])
 
-    return calls
-      .filter((call) => now.getTime() - new Date(call.createdAt).getTime() <= maxAge)
-      .filter((call) => userFilter === 'all' || call.userId === userFilter)
-  }, [calls, range, userFilter])
+  const onCall = async (id: string, phone: string) => {
+    setCallingId(id)
+    try {
+      await callProspectWithTwilio(phone)
+    } finally {
+      setCallingId(null)
+    }
+  }
 
   return (
     <div className="space-y-4">
-      <section className="rounded-2xl border border-zinc-800 bg-[#1A1A1A] p-3">
-        <div className="flex gap-2">
-          {(['today', 'week', 'month'] as FilterRange[]).map((value) => (
-            <button
-              key={value}
-              type="button"
-              onClick={() => setRange(value)}
-              className={`min-h-11 flex-1 rounded-xl text-sm ${
-                range === value ? 'bg-[#FF6B35] text-white' : 'border border-zinc-700 text-zinc-300'
-              }`}
-            >
-              {value === 'today' ? "Aujourd'hui" : value === 'week' ? 'Semaine' : 'Mois'}
-            </button>
-          ))}
+      <section className="rounded-2xl border border-zinc-800 bg-[#1A1A1A] p-2">
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            onClick={() => setSortMode('recent')}
+            className={`min-h-11 rounded-xl text-sm ${sortMode === 'recent' ? 'bg-[#FF6B35]' : 'border border-zinc-700'}`}
+          >
+            Récents
+          </button>
+          <button
+            type="button"
+            onClick={() => setSortMode('city')}
+            className={`min-h-11 rounded-xl text-sm ${sortMode === 'city' ? 'bg-[#FF6B35]' : 'border border-zinc-700'}`}
+          >
+            Par ville
+          </button>
         </div>
-        <select
-          value={userFilter}
-          onChange={(event) => setUserFilter(event.target.value)}
-          className="mt-2 min-h-11 w-full rounded-xl border border-zinc-700 bg-[#0F0F0F] px-3"
-        >
-          <option value="all">Tous les prospecteurs</option>
-          {users.map((user) => (
-            <option key={user.id} value={user.id}>
-              {user.name}
-            </option>
-          ))}
-        </select>
       </section>
 
-      {filteredCalls.map((call) => {
-        const prospect = prospects.find((item) => item.id === call.prospectId)
-        return (
-          <article key={call.id} className="rounded-2xl border border-zinc-800 bg-[#1A1A1A] p-3">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="font-medium">{prospect?.name}</p>
-                <p className="text-sm text-zinc-400">{prospect?.vehicle}</p>
-                <p className="text-xs text-zinc-500">{since(call.createdAt)}</p>
-              </div>
-              <span className="rounded-full border border-zinc-700 px-2 py-1 text-xs text-zinc-300">
-                {prettyDuration(call.duration)}
-              </span>
+      <section className="overflow-hidden rounded-2xl border border-zinc-800 bg-[#1A1A1A]">
+        {callableProspects.map((prospect, index) => (
+          <motion.article
+            key={prospect.id}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            className={`flex min-h-14 items-center gap-3 px-3 ${index !== callableProspects.length - 1 ? 'border-b border-zinc-800' : ''}`}
+          >
+            <button
+              type="button"
+              onClick={() => window.open(prospect.lbcUrl, '_blank', 'noopener,noreferrer')}
+              className="rounded-lg"
+            >
+              <img src={prospect.photoUrl} alt={prospect.vehicle} className="h-10 w-10 rounded-lg object-cover" />
+            </button>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-medium">{prospect.vehicle}</p>
+              <p className="truncate text-xs text-zinc-400">{prospect.city}</p>
             </div>
+            <button
+              type="button"
+              onClick={() => onCall(prospect.id, prospect.phone)}
+              className={`min-h-11 rounded-full px-4 text-sm font-medium ${
+                callingId === prospect.id ? 'animate-pulse bg-[#22C55E]/40' : 'bg-[#22C55E]'
+              }`}
+            >
+              Appeler
+            </button>
+          </motion.article>
+        ))}
+      </section>
 
-            <audio controls className="mt-3 w-full">
-              <source src={call.recordingUrl} />
-            </audio>
-            <p className="mt-2 rounded-xl bg-[#0F0F0F] p-2 text-sm text-zinc-300">{call.transcript}</p>
-            <p className="mt-2 text-xs text-zinc-500">Statut: {prospect?.status ?? 'n/a'}</p>
-          </article>
-        )
-      })}
+      {callableProspects.length === 0 ? (
+        <p className="rounded-2xl border border-zinc-800 bg-[#1A1A1A] p-4 text-sm text-zinc-500">
+          Aucun prospect appelable pour l’instant.
+        </p>
+      ) : null}
     </div>
   )
 }

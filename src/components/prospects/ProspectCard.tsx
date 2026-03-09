@@ -73,6 +73,9 @@ export const ProspectCard = ({
           <div className="mt-2">
             <StatusBadge status={prospect.status} callbackAt={prospect.callbackAt} />
           </div>
+          {prospect.specialTag ? (
+            <p className="mt-1 text-xs font-medium text-[#F97316]">{prospect.specialTag}</p>
+          ) : null}
         </div>
       </button>
 

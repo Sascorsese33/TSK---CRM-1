@@ -20,6 +20,7 @@ create table if not exists public.prospects (
   status text not null check (status in ('rdv', 'refus', 'callback', 'ready', 'waiting')),
   assigned_to uuid not null references public.users(id) on delete cascade,
   callback_at timestamptz,
+  special_tag text,
   notes text default '',
   created_at timestamptz not null default now()
 );
@@ -32,6 +33,7 @@ create table if not exists public.calls (
   duration integer not null default 0,
   recording_url text,
   transcript text,
+  is_training boolean not null default false,
   created_at timestamptz not null default now()
 );
 
@@ -43,6 +45,7 @@ create table if not exists public.appointments (
   datetime timestamptz not null,
   google_event_id text,
   sms_sent boolean not null default false,
+  outcome text not null default 'confirmed' check (outcome in ('confirmed', 'bad_condition', 'no_show')),
   created_at timestamptz not null default now()
 );
 
